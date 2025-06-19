@@ -84,4 +84,18 @@ class Bebida {
         $stmt->execute([$data['tipo'], $data['volume'], $data['secao'], $data['responsavel']]);
         return ['status' => 'registrado'];
     }
+    // Dentro da classe Bebida em models/Bebida.php
+public static function remover($id) {
+    $pdo = Database::connect();
+    $sql = "DELETE FROM bebidas WHERE id = ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id]);
+
+    // Verifica se alguma linha foi afetada (se a bebida foi realmente removida)
+    if ($stmt->rowCount() > 0) {
+        return ['status' => 'ok', 'message' => 'Bebida removida com sucesso!'];
+    } else {
+        return ['status' => 'error', 'message' => 'Bebida nao encontrada ou nao pode ser removida.'];
+    }
+}
 }
