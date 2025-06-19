@@ -1,0 +1,13 @@
+# Ignorar dependencias do PHP (Composer)
+/backend/vendor/
+/backend/composer.lock # Opcional: Alguns preferem comitar o lock, mas para simplicidade inicial, ignore.
+
+# Ignorar dependencias do Node.js (NPM/Yarn)
+/frontend/node_modules/
+/frontend/package-lock.json # Opcional: para forçar re-instalação limpa
+
+# Ignorar arquivos de log, temporarios e de sistema
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

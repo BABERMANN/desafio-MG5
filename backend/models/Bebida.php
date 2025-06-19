@@ -10,10 +10,47 @@ class Bebida {
 
     public static function cadastrar($data) {
         $pdo = Database::connect();
+
+        // --- NOVA LÓGICA DE VERIFICAÇÃO DE SEÇÃO ---
+        $nome = $data['nome'];
+        $tipo = $data['tipo'];
+        $volume = $data['volume'];
+        $secao = $data['secao'];
+
+        // 1. Verificar se a seção já contém bebidas de outro tipo
+        $existingTypeInSecao = self::getTipoBebidaNaSecao($secao);
+
+        if ($existingTypeInSecao !== null && $existingTypeInSecao !== $tipo) {
+            // A seção já tem um tipo diferente de bebida, então não pode misturar
+            return ['status' => 'error', 'message' => 'Nao e permitido misturar bebidas de tipos diferentes (alcoolicas/nao-alcoolicas) na mesma secao.'];
+        }
+
+        // 2. Verificar espaço disponível na seção para o tipo
+        if (!self::verificarEspaco($tipo, $volume)) {
+            return ['status' => 'error', 'message' => 'Espaco insuficiente na secao para o volume desejado.'];
+        }
+        // --- FIM DA NOVA LÓGICA DE VERIFICAÇÃO DE SEÇÃO ---
+
+
         $stmt = $pdo->prepare("INSERT INTO bebidas (nome, tipo, volume, secao) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$data['nome'], $data['tipo'], $data['volume'], $data['secao']]);
+        $stmt->execute([$nome, $tipo, $volume, $secao]); // Usar as variáveis definidas acima
         return ['status' => 'ok', 'id' => $pdo->lastInsertId()];
     }
+
+    // --- NOVA FUNÇÃO ADICIONADA: PARA VERIFICAR TIPO EXISTENTE NA SEÇÃO ---
+    public static function getTipoBebidaNaSecao($secao) {
+        $pdo = Database::connect();
+        // Busca um registro na seção para ver qual tipo de bebida já existe nela
+        $stmt = $pdo->prepare("SELECT DISTINCT tipo FROM bebidas WHERE secao = ? LIMIT 1");
+        $stmt->execute([$secao]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row) {
+            return $row['tipo']; // Retorna o tipo existente (alcolica ou nao_alcolica)
+        }
+        return null; // A seção está vazia ou não existe
+    }
+    // --- FIM DA NOVA FUNÇÃO ---
 
     public static function volumeTotal($tipo) {
         $pdo = Database::connect();

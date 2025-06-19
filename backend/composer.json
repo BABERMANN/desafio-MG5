@@ -1,0 +1,15 @@
+{
+    "name": "usurio/backend",
+    "type": "project",
+    "require": {
+        "lightphp/lightphp": "dev-master",
+        "flightphp/core": "dev-master"
+    },
+    "authors": [
+        {
+            "name": "BABERMANN",
+            "email": "cauahabermann7@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev"
+}
