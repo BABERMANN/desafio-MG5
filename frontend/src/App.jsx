@@ -4,8 +4,14 @@
     function App() {
         // Estados para a lista de bebidas
         const [bebidas, setBebidas] = useState([]);
-        const [loading, setLoading] = useState(true); // Indica se os dados estão sendo carregados
-        const [error, setError] = useState(null);   // Armazena mensagens de erro
+        const [loadingBebidas, setLoadingBebidas] = useState(true); // Indica se os dados estão sendo carregados
+        const [errorBebidas, setErrorBebidas] = useState(null);   // Armazena mensagens de erro
+
+        // --- NOVOS ESTADOS PARA O HISTÓRICO ---
+        const [historico, setHistorico] = useState([]);
+        const [loadingHistorico, setLoadingHistorico] = useState(true);
+        const [errorHistorico, setErrorHistorico] = useState(null);
+        // --- FIM DOS NOVOS ESTADOS ---
 
         // Estado unificado para o formulário de cadastro/edição
         const [formData, setFormData] = useState({
@@ -19,12 +25,14 @@
         const [isEditing, setIsEditing] = useState(false); // Flag para controlar se o formulário está no modo de edição
 
         // URL base da sua API PHP (AJUSTE CONFORME SEU SETUP!)
+        // Se o backend estiver rodando com 'php -S localhost:8000', use: 'http://localhost:8000'
+        // Se estiver rodando com Apache/XAMPP, e a pasta 'backend' estiver em 'htdocs/desafio_mg5', use: 'http://localhost/desafio_mg5/backend'
         const API_BASE_URL = 'http://localhost:8000'; // <<--- VERIFIQUE E AJUSTE ESTA URL CONFORME SEU BACKEND!
 
         // Função assíncrona para buscar a lista de bebidas da API
         const fetchBebidas = async () => {
             try {
-                setLoading(true); // Ativa o estado de carregamento
+                setLoadingBebidas(true); // Ativa o estado de carregamento
                 const response = await fetch(`${API_BASE_URL}/bebidas`); // Faz a requisição GET para a rota /bebidas
                 
                 // Verifica se a resposta HTTP foi bem-sucedida (status 2xx)
@@ -36,11 +44,32 @@
                 const data = await response.json(); // Converte a resposta para JSON
                 setBebidas(data); // Atualiza o estado com as bebidas recebidas
             } catch (err) {
-                setError(err.message); // Captura e exibe erros de requisição
+                setErrorBebidas(err.message); // Captura e exibe erros de requisição
             } finally {
-                setLoading(false); // Desativa o estado de carregamento
+                setLoadingBebidas(false); // Desativa o estado de carregamento
             }
         };
+
+        // --- NOVA FUNÇÃO: Para buscar o histórico da API ---
+        const fetchHistorico = async () => {
+            try {
+                setLoadingHistorico(true);
+                // Sua API de histórico pode aceitar parâmetros como 'data' ou 'secao' para ordenação.
+                // Por enquanto, vamos buscar sem parâmetros.
+                const response = await fetch(`${API_BASE_URL}/historico`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Erro HTTP! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                setHistorico(data);
+            } catch (err) {
+                setErrorHistorico(err.message);
+            } finally {
+                setLoadingHistorico(false);
+            }
+        };
+        // --- FIM DA NOVA FUNÇÃO ---
 
         // Lida com as mudanças nos campos do formulário (nome, tipo, volume, secao)
         const handleInputChange = (e) => {
@@ -85,6 +114,7 @@
                     setFormData({ id: null, nome: '', tipo: 'alcolica', volume: '', secao: '' });
                     setIsEditing(false); // Volta para o modo de cadastro
                     fetchBebidas(); // Recarrega a lista de bebidas para mostrar as alterações
+                    fetchHistorico(); // Recarrega o histórico também, se relevante
                 } else {
                     // Se a API retornou { status: 'error', message: '...' }
                     setFormStatus(`Erro: ${result.message || 'Erro desconhecido'}`);
@@ -117,17 +147,16 @@
             setFormStatus('');
         };
 
-        // --- NOVA FUNÇÃO: Lidar com a exclusão de uma bebida ---
+        // Lidar com a exclusão de uma bebida
         const handleDeleteClick = async (bebidaId) => {
-            // Pede confirmação ao usuário antes de excluir
             if (window.confirm('Tem certeza que deseja remover esta bebida?')) {
                 setFormStatus('Removendo bebida...');
                 try {
                     const response = await fetch(`${API_BASE_URL}/bebidas/${bebidaId}`, {
-                        method: 'DELETE' // Método HTTP DELETE para exclusão
+                        method: 'DELETE'
                     });
 
-                    const result = await response.json(); // Pega a resposta da API
+                    const result = await response.json();
 
                     if (!response.ok) {
                         throw new Error(result.message || `Erro HTTP! Status: ${response.status}`);
@@ -135,7 +164,8 @@
 
                     if (result.status === 'ok') {
                         setFormStatus('Bebida removida com sucesso!');
-                        fetchBebidas(); // Recarrega a lista para refletir a exclusão
+                        fetchBebidas(); // Recarrega a lista de bebidas
+                        fetchHistorico(); // Recarrega o histórico
                     } else {
                         setFormStatus(`Erro ao remover: ${result.message || 'Erro desconhecido'}`);
                     }
@@ -144,20 +174,20 @@
                 }
             }
         };
-        // --- FIM DA NOVA FUNÇÃO ---
 
-        // useEffect para buscar as bebidas quando o componente é montado pela primeira vez
+        // useEffect para buscar as bebidas e o histórico quando o componente é montado
         useEffect(() => {
             fetchBebidas();
+            fetchHistorico(); // Chama a função para buscar o histórico
         }, []); // O array vazio [] como dependência garante que esta função rode apenas uma vez
 
-        // Exibição condicional de estados de carregamento e erro
-        if (loading) {
+        // Exibição condicional de estados de carregamento e erro (para bebidas)
+        if (loadingBebidas) {
             return <div style={{ textAlign: 'center', marginTop: '50px' }}>Carregando bebidas...</div>;
         }
 
-        if (error) {
-            return <div style={{ textAlign: 'center', color: 'red', marginTop: '50px' }}>Erro ao carregar bebidas: {error}</div>;
+        if (errorBebidas) {
+            return <div style={{ textAlign: 'center', color: 'red', marginTop: '50px' }}>Erro ao carregar bebidas: {errorBebidas}</div>;
         }
 
         return (
@@ -295,7 +325,6 @@
                             >
                                 {isEditing ? 'Atualizar Bebida' : 'Cadastrar Bebida'}
                             </button>
-                            {/* Botão "Cancelar Edição" aparece apenas no modo de edição */}
                             {isEditing && (
                                 <button
                                     type="button"
@@ -316,14 +345,36 @@
                             )}
                         </div>
                     </form>
-                    {/* Exibe o status da operação (cadastro/edição) */}
                     {formStatus && <p style={{ textAlign: 'center', marginTop: '15px', fontWeight: 'bold', color: formStatus.includes('sucesso') ? '#28a745' : '#dc3545' }}>{formStatus}</p>}
                 </section>
 
+                {/* --- NOVA SEÇÃO: LISTAGEM DE HISTÓRICO --- */}
                 <section style={{ marginTop: '40px' }}>
-                    <h2 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '20px', color: '#61dafb' }}>Histórico</h2>
-                    <p style={{ textAlign: 'center' }}>Listagem de histórico virá aqui.</p>
+                    <h2 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '20px', color: '#61dafb' }}>Histórico de Movimentações</h2>
+                    {loadingHistorico ? (
+                        <p style={{ textAlign: 'center' }}>Carregando histórico...</p>
+                    ) : errorHistorico ? (
+                        <p style={{ textAlign: 'center', color: 'red' }}>Erro ao carregar histórico: {errorHistorico}</p>
+                    ) : historico.length === 0 ? (
+                        <p style={{ textAlign: 'center' }}>Nenhuma movimentação no histórico.</p>
+                    ) : (
+                        <ul style={{ listStyleType: 'none', padding: 0 }}>
+                            {historico.map(movimento => (
+                                <li key={movimento.id} style={{
+                                    backgroundColor: '#333',
+                                    padding: '10px 15px',
+                                    marginBottom: '10px',
+                                    borderRadius: '5px'
+                                }}>
+                                    <span>
+                                        [{new Date(movimento.data).toLocaleString()}] - <strong>{movimento.volume}L</strong> de {movimento.tipo} na Seção: {movimento.secao} ({movimento.acao})
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </section>
+                {/* --- FIM DA NOVA SEÇÃO --- */}
             </div>
         );
     }

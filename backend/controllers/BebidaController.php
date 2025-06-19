@@ -31,7 +31,7 @@ class BebidaController {
         Flight::json(['disponivel' => $resultado]);
     }
 
-    public static function listarHistorico($params): void {
+    public static function listarHistorico($params = []): void {
         $historico = Bebida::listarHistorico($params);
         Flight::json($historico);
     }
@@ -42,7 +42,7 @@ class BebidaController {
         Flight::json($resultado);
     }
     // Dentro da classe BebidaController em controllers/BebidaController.php
-public static function remover($id): void { // Adicione o ": void" para consistência de linter
+    public static function remover($id): void { // Adicione o ": void" para consistência de linter
     $resultado = Bebida::remover($id); // Passa o ID para o modelo
     Flight::json($resultado);
 }
