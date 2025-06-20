@@ -74,6 +74,7 @@ class Bebida {
             return ['status' => 'error', 'message' => 'Bebida nao encontrada para atualizacao.'];
         }
 
+        // Usa os novos dados ou os dados atuais se não forem fornecidos
         $nome = $data['nome'] ?? $currentBebida['nome'];
         $tipo = $data['tipo'] ?? $currentBebida['tipo'];
         $volume = $data['volume'] ?? $currentBebida['volume'];
@@ -88,7 +89,7 @@ class Bebida {
         }
 
         // VALIDAÇÃO: Verificar espaço ao atualizar volume
-        if ($volume > $currentBebida['volume']) {
+        if ($volume > $currentBebida['volume']) { // Apenas se o volume aumentar
             $volumeDifference = $volume - $currentBebida['volume'];
             if (!self::verificarEspaco($tipo, $volumeDifference)) {
                 return ['status' => 'error', 'message' => 'Espaco insuficiente na secao para o volume adicionado.'];
@@ -201,11 +202,28 @@ class Bebida {
     public static function listarHistorico($params) {
         $pdo = Database::connect();
         $sql = "SELECT id, data, nome, tipo, volume, secao, responsavel, acao FROM historico";
-        $order = [];
+        $orderParts = []; // Array para armazenar as partes da clausula ORDER BY
 
-        if (!empty($params['data'])) $order[] = "data " . strtoupper($params['data']);
-        if (!empty($params['secao'])) $order[] = "secao " . strtoupper($params['secao']);
-        if ($order) $sql .= " ORDER BY " . implode(", ", $order);
+        if (!empty($params['data'])) {
+            $orderParts[] = "data " . strtoupper($params['data']);
+        }
+
+        if (!empty($params['secao'])) {
+            $direction = strtoupper($params['secao']); // Pega ASC ou DESC
+            // Implementa a ordenacao natural para a secao (ex: A1, A2, A10)
+            // Divide a secao em parte alfabetica e parte numerica para ordenar separadamente
+            $orderParts[] = "
+                TRIM(TRAILING '0123456789' FROM secao) {$direction},
+                CAST(TRIM(LEADING 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' FROM secao) AS UNSIGNED) {$direction}
+            ";
+            // Explicação:
+            // TRIM(TRAILING '0123456789' FROM secao): Pega a parte nao-numerica inicial (ex: "A" de "A10")
+            // CAST(TRIM(LEADING '...' FROM secao) AS UNSIGNED): Pega a parte numerica final (ex: "10" de "A10") e a converte para numero
+        }
+
+        if ($orderParts) {
+            $sql .= " ORDER BY " . implode(", ", $orderParts);
+        }
 
         return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css'; // Estilos globais para a aplicação
 
-// Importa os componentes já criados
+// Importa os novos componentes
 import BebidaList from './BebidaList';
 import BebidaForm from './BebidaForm';
 import HistoricoList from './HistoricoList';
@@ -28,16 +28,21 @@ function App() {
     const [formStatus, setFormStatus] = useState(''); // Feedback para o usuário para operações de bebidas
     const [isEditing, setIsEditing] = useState(false);
 
-    // --- NOVOS ESTADOS PARA O FORMULÁRIO DE HISTÓRICO MANUAL ---
+    // Estado para os parâmetros de ordenação do histórico
+    const [historicoOrder, setHistoricoOrder] = useState({
+        data: '', // 'asc', 'desc', ou '' para sem ordenacao
+        secao: '' // 'asc', 'desc', ou '' para sem ordenacao - A ORDENAÇÃO POR SEÇÃO SERÁ FEITA NO REACT
+    });
+
+    // Estados para o formulário de histórico manual
     const [newHistoricoData, setNewHistoricoData] = useState({
-        nome: '', // Campo para o nome da bebida no histórico manual
+        nome: '',
         tipo: 'alcolica',
         volume: '',
         secao: '',
-        acao: 'Adicionada' // Valor padrão para a ação manual (simplificado)
+        acao: 'Adicionada' // Valor padrão para a ação manual
     });
-    const [newHistoricoFormStatus, setNewHistoricoFormStatus] = useState(''); // Feedback para o formulário de histórico
-    // --- FIM DOS NOVOS ESTADOS ---
+    const [newHistoricoFormStatus, setNewHistoricoFormStatus] = useState('');
 
     // URL base da sua API PHP
     const API_BASE_URL = 'http://localhost:8000'; // <<--- VERIFIQUE E AJUSTE ESTA URL CONFORME SEU BACKEND!
@@ -63,13 +68,25 @@ function App() {
     const fetchHistorico = async () => {
         try {
             setLoadingHistorico(true);
-            const response = await fetch(`${API_BASE_URL}/historico`);
+            let url = `${API_BASE_URL}/historico`;
+            const params = new URLSearchParams();
+
+            if (historicoOrder.data) { // Apenas a ordenação por data será enviada para o backend
+                params.append('data', historicoOrder.data);
+            }
+            // Não vamos mais enviar 'secao' como parâmetro para o backend aqui
+
+            if (params.toString()) {
+                url = `${url}?${params.toString()}`;
+            }
+
+            const response = await fetch(url);
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Erro HTTP! Status: ${response.status}`);
             }
             const data = await response.json();
-            setHistorico(data);
+            setHistorico(data); // Define os dados brutos recebidos
         } catch (err) {
             setErrorHistorico(err.message);
         } finally {
@@ -152,7 +169,7 @@ function App() {
         }
     };
 
-    // --- NOVAS FUNÇÕES PARA O FORMULÁRIO DE HISTÓRICO MANUAL ---
+    // Lógicas para o formulário de histórico manual
     const handleNewHistoricoInputChange = (e) => {
         const { name, value } = e.target;
         setNewHistoricoData(prevState => ({ ...prevState, [name]: value }));
@@ -162,10 +179,9 @@ function App() {
         e.preventDefault();
         setNewHistoricoFormStatus('Registrando movimentação...');
 
-        // Prepara os dados para enviar, incluindo o responsável fixo
         const historicoToSend = {
             ...newHistoricoData,
-            responsavel: 'Registro Manual' // Valor fixo para o responsável
+            responsavel: 'Registro Manual'
         };
 
         try {
@@ -178,21 +194,35 @@ function App() {
             const result = await response.json();
 
             if (!response.ok) { throw new Error(result.message || `Erro HTTP! Status: ${response.status}`); }
-            if (result.status === 'registrado') { // Sua API retorna 'registrado' para sucesso no histórico
+            if (result.status === 'registrado') {
                 setNewHistoricoFormStatus('Movimentação registrada com sucesso!');
-                // Limpa formulário, ajustando a ação padrão para o novo conjunto de opções
-                setNewHistoricoData({ nome: '', tipo: 'alcolica', volume: '', secao: '', acao: 'Adicionada' }); 
-                fetchHistorico(); // Recarrega histórico
+                setNewHistoricoData({ nome: '', tipo: 'alcolica', volume: '', secao: '', acao: 'Adicionada' });
+                fetchHistorico();
             } else { setNewHistoricoFormStatus(`Erro ao registrar: ${result.message || 'Erro desconhecido'}`); }
         } catch (err) { setNewHistoricoFormStatus(`Erro na requisição: ${err.message}`); }
     };
-    // --- FIM DAS NOVAS FUNÇÕES ---
+
+    // Lidar com a mudança nos parâmetros de ordenação do histórico
+    const handleHistoricoOrderChange = (e) => {
+        const { name, value } = e.target;
+        setHistoricoOrder(prevOrder => {
+            const newOrder = { ...prevOrder, [name]: value };
+
+            if (name === 'data' && value !== '') {
+                newOrder.secao = ''; // Se ordena por data, reseta secao
+            } else if (name === 'secao' && value !== '') {
+                newOrder.data = ''; // Se ordena por secao, reseta data
+            }
+            return newOrder;
+        });
+    };
 
 
+    // useEffect para buscar as bebidas e o histórico quando o componente é montado ou a ordenação muda
     useEffect(() => {
         fetchBebidas();
         fetchHistorico();
-    }, []);
+    }, [historicoOrder.data, historicoOrder.secao]); // Re-executa se a ordenação mudar
 
     if (loadingBebidas || loadingHistorico) {
         return <div style={{ textAlign: 'center', marginTop: '50px' }}>Carregando dados...</div>;
@@ -201,6 +231,31 @@ function App() {
     if (errorBebidas) {
         return <div style={{ textAlign: 'center', color: 'red', marginTop: '50px' }}>Erro ao carregar bebidas: {errorBebidas}</div>;
     }
+
+    // --- LOGICA DE ORDENAÇÃO NATURAL DA SEÇÃO NO REACT (FEITO NO FRONTEND) ---
+    // Use React.useMemo para otimizar e re-ordenar apenas quando necessário
+    const sortedHistorico = React.useMemo(() => {
+        let currentHistorico = [...historico]; // Cria uma cópia para não modificar o estado original
+
+        if (historicoOrder.secao) {
+            currentHistorico.sort((a, b) => {
+                // Função de ordenação natural para strings alfanuméricas (ex: A1, A2, A10)
+                // Intl.Collator é a maneira mais robusta de fazer "natural sort" em JS
+                const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+                const compareResult = collator.compare(a.secao, b.secao);
+
+                if (historicoOrder.secao === 'asc') {
+                    return compareResult;
+                } else {
+                    return -compareResult; // Inverte para Z-A
+                }
+            });
+        }
+        // A ordenação por data já é feita pela API se o parâmetro for enviado
+
+        return currentHistorico;
+    }, [historico, historicoOrder.secao]); // Recalcula se o histórico ou a ordenação da seção mudar
+
 
     return (
         <div className="App" style={{ maxWidth: '800px', margin: '20px auto', padding: '20px', border: '1px solid #333', borderRadius: '8px', backgroundColor: '#282c34', color: '#f0f0f0' }}>
@@ -225,13 +280,15 @@ function App() {
 
             {/* Renderiza o componente HistoricoList, passando o handler de exclusão */}
             <HistoricoList
-                historico={historico}
+                historico={sortedHistorico} // PASSA O HISTÓRICO JÁ ORDENADO
                 loadingHistorico={loadingHistorico}
                 errorHistorico={errorHistorico}
                 handleDeleteHistoricoClick={handleDeleteHistoricoClick}
+                historicoOrder={historicoOrder}
+                handleHistoricoOrderChange={handleHistoricoOrderChange}
             />
 
-            {/* --- NOVA SEÇÃO: FORMULÁRIO PARA ADICIONAR HISTÓRICO MANUALMENTE --- */}
+            {/* Renderiza o formulário para adicionar histórico manualmente */}
             <section style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #444' }}>
                 <h2 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '20px', color: '#61dafb' }}>Adicionar Movimentação Manual ao Histórico</h2>
                 <form onSubmit={handleNewHistoricoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
