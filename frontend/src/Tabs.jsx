@@ -1,22 +1,23 @@
-// frontend/src/Tabs.jsx
-
 import React from 'react';
+import { useBebidas } from './context/BebidasContext';
 
-// Os nomes das nossas abas
+// A gente simplesmente remove a opção 'manual' da nossa lista de abas.
 const tabs = [
     { key: 'lista', label: 'Lista de Bebidas' },
-    { key: 'cadastro', label: 'Cadastrar/Editar Bebida' },
-    { key: 'historico', label: 'Histórico' },
-    { key: 'manual', label: 'Adicionar Manual' }
+    { key: 'cadastro', label: 'Cadastrar/Editar' },
+    { key: 'historico', label: 'Histórico' }
 ];
 
-function Tabs({ activeTab, setActiveTab }) {
+function Tabs() {
+    // Pega só o que precisa do contexto: a aba ativa e a função pra trocar.
+    const { activeTab, setActiveTab } = useBebidas();
+    
     return (
         <nav className="tabs-nav">
             {tabs.map(tab => (
                 <button
                     key={tab.key}
-                    // Aplica a classe 'active' se a aba for a que está ativa
+                    // Se a aba do botão for a mesma que está ativa, o CSS deixa ela com um estilo diferente.
                     className={activeTab === tab.key ? 'active' : ''}
                     onClick={() => setActiveTab(tab.key)}
                 >

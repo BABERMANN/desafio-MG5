@@ -40,3 +40,16 @@
 .read-the-docs {
   color: #888;
 }
+
+.App {
+  position: relative; 
+}
+
+
+.app-logo {
+  position: absolute; 
+  top: 25px;          
+  left: 25px;         
+  height: 35px;       
+  width: auto;        
+}
