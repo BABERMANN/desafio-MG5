@@ -1,42 +1,15 @@
+// frontend/src/HistoricoList.jsx
+
 import React from 'react';
 
-// Componente funcional HistoricoList para exibir o histórico de movimentações
-// Recebe 'historico', 'loadingHistorico', 'errorHistorico',
-// 'handleDeleteHistoricoClick', e os NOVOS 'historicoOrder', 'handleHistoricoOrderChange' como props
-function HistoricoList({ historico, loadingHistorico, errorHistorico, handleDeleteHistoricoClick, historicoOrder, handleHistoricoOrderChange }) {
+// Componente simplificado para exibir o histórico de movimentações
+// REMOVIDO: Props de ordenação não são mais necessárias
+function HistoricoList({ historico, loadingHistorico, errorHistorico, handleDeleteHistoricoClick }) {
     return (
         <section style={{ marginTop: '40px' }}>
             <h2 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '20px', color: '#61dafb' }}>Histórico de Movimentações</h2>
             
-            {/* --- NOVOS CONTROLES DE ORDENAÇÃO --- */}
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '15px', justifyContent: 'center', alignItems: 'center' }}>
-                <label htmlFor="orderByData" style={{ fontWeight: 'bold' }}>Ordenar por Data:</label>
-                <select
-                    id="orderByData"
-                    name="data"
-                    value={historicoOrder.data}
-                    onChange={handleHistoricoOrderChange}
-                    style={{ padding: '5px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}
-                >
-                    <option value="">Nenhum</option>
-                    <option value="desc">Mais Recente</option>
-                    <option value="asc">Mais Antigo</option>
-                </select>
-
-                <label htmlFor="orderBySecao" style={{ fontWeight: 'bold' }}>Ordenar por Seção:</label>
-                <select
-                    id="orderBySecao"
-                    name="secao"
-                    value={historicoOrder.secao}
-                    onChange={handleHistoricoOrderChange}
-                    style={{ padding: '5px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}
-                >
-                    <option value="">Nenhum</option>
-                    <option value="asc">A-Z</option>
-                    <option value="desc">Z-A</option>
-                </select>
-            </div>
-            {/* --- FIM DOS CONTROLES DE ORDENAÇÃO --- */}
+            {/* --- REMOVIDO: Controles de ordenação --- */}
 
             {loadingHistorico ? (
                 <p style={{ textAlign: 'center' }}>Carregando histórico...</p>

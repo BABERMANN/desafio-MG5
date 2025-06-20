@@ -199,31 +199,21 @@ class Bebida {
      * @param array $params Parâmetros de ordenação (ex: ['data' => 'asc', 'secao' => 'desc']).
      * @return array Um array de objetos de histórico.
      */
-    public static function listarHistorico($params) {
+    // backend/models/Bebida.php
+
+    /**
+     * Lista o histórico de movimentações, ordenado por seção como padrão.
+     * @return array Um array de objetos de histórico.
+     */
+    public static function listarHistorico() { // REMOVIDO o parâmetro $params
         $pdo = Database::connect();
-        $sql = "SELECT id, data, nome, tipo, volume, secao, responsavel, acao FROM historico";
-        $orderParts = []; // Array para armazenar as partes da clausula ORDER BY
-
-        if (!empty($params['data'])) {
-            $orderParts[] = "data " . strtoupper($params['data']);
-        }
-
-        if (!empty($params['secao'])) {
-            $direction = strtoupper($params['secao']); // Pega ASC ou DESC
-            // Implementa a ordenacao natural para a secao (ex: A1, A2, A10)
-            // Divide a secao em parte alfabetica e parte numerica para ordenar separadamente
-            $orderParts[] = "
-                TRIM(TRAILING '0123456789' FROM secao) {$direction},
-                CAST(TRIM(LEADING 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' FROM secao) AS UNSIGNED) {$direction}
-            ";
-            // Explicação:
-            // TRIM(TRAILING '0123456789' FROM secao): Pega a parte nao-numerica inicial (ex: "A" de "A10")
-            // CAST(TRIM(LEADING '...' FROM secao) AS UNSIGNED): Pega a parte numerica final (ex: "10" de "A10") e a converte para numero
-        }
-
-        if ($orderParts) {
-            $sql .= " ORDER BY " . implode(", ", $orderParts);
-        }
+        // A cláusula ORDER BY agora é fixa e faz a ordenação natural
+        $sql = "SELECT id, data, nome, tipo, volume, secao, responsavel, acao 
+                FROM historico 
+                ORDER BY
+                    TRIM(TRAILING '0123456789' FROM secao) ASC,
+                    CAST(TRIM(LEADING 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' FROM secao) AS UNSIGNED) ASC,
+                    data ASC"; // Adicionado um segundo critério de ordenação por data
 
         return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }

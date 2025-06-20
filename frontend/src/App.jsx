@@ -1,63 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import './App.css'; // Estilos globais para a aplicação
+// frontend/src/App.jsx
 
-// Importa os novos componentes
+import React, { useState, useEffect } from 'react';
+import './App.css';
+
+// Nossos componentes
 import BebidaList from './BebidaList';
 import BebidaForm from './BebidaForm';
 import HistoricoList from './HistoricoList';
+import Tabs from './Tabs'; // 1. Importando o novo componente de abas
 
 function App() {
-    // Estados para a lista de bebidas
+    // --- Estados da Aplicação (sem mudanças aqui) ---
     const [bebidas, setBebidas] = useState([]);
     const [loadingBebidas, setLoadingBebidas] = useState(true);
     const [errorBebidas, setErrorBebidas] = useState(null);
 
-    // Estados para o histórico
     const [historico, setHistorico] = useState([]);
     const [loadingHistorico, setLoadingHistorico] = useState(true);
     const [errorHistorico, setErrorHistorico] = useState(null);
 
-    // Estado unificado para o formulário de cadastro/edição de bebidas
-    const [formData, setFormData] = useState({
-        id: null,
-        nome: '',
-        tipo: 'alcolica',
-        volume: '',
-        secao: ''
-    });
-    const [formStatus, setFormStatus] = useState(''); // Feedback para o usuário para operações de bebidas
+    const [formData, setFormData] = useState({ id: null, nome: '', tipo: 'alcolica', volume: '', secao: '' });
+    const [formStatus, setFormStatus] = useState('');
     const [isEditing, setIsEditing] = useState(false);
 
-    // Estado para os parâmetros de ordenação do histórico
-    const [historicoOrder, setHistoricoOrder] = useState({
-        data: '', // 'asc', 'desc', ou '' para sem ordenacao
-        secao: '' // 'asc', 'desc', ou '' para sem ordenacao - A ORDENAÇÃO POR SEÇÃO SERÁ FEITA NO REACT
-    });
-
-    // Estados para o formulário de histórico manual
-    const [newHistoricoData, setNewHistoricoData] = useState({
-        nome: '',
-        tipo: 'alcolica',
-        volume: '',
-        secao: '',
-        acao: 'Adicionada' // Valor padrão para a ação manual
-    });
+    const [newHistoricoData, setNewHistoricoData] = useState({ nome: '', tipo: 'alcolica', volume: '', secao: '', acao: 'Adicionada' });
     const [newHistoricoFormStatus, setNewHistoricoFormStatus] = useState('');
+    
+    // 2. Estado para controlar a aba ativa. Começamos na 'lista'.
+    const [activeTab, setActiveTab] = useState('lista');
 
-    // URL base da sua API PHP
-    const API_BASE_URL = 'http://localhost:8000'; // <<--- VERIFIQUE E AJUSTE ESTA URL CONFORME SEU BACKEND!
+    const API_BASE_URL = 'http://localhost:8000';
 
-    // Funções de fetch para bebidas e histórico
+    // --- Funções de Fetch e Lógica (a maioria sem mudanças) ---
     const fetchBebidas = async () => {
         try {
             setLoadingBebidas(true);
             const response = await fetch(`${API_BASE_URL}/bebidas`);
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `Erro HTTP! Status: ${response.status}`);
-            }
-            const data = await response.json();
-            setBebidas(data);
+            if (!response.ok) { throw new Error((await response.json()).message); }
+            setBebidas(await response.json());
         } catch (err) {
             setErrorBebidas(err.message);
         } finally {
@@ -68,25 +48,9 @@ function App() {
     const fetchHistorico = async () => {
         try {
             setLoadingHistorico(true);
-            let url = `${API_BASE_URL}/historico`;
-            const params = new URLSearchParams();
-
-            if (historicoOrder.data) { // Apenas a ordenação por data será enviada para o backend
-                params.append('data', historicoOrder.data);
-            }
-            // Não vamos mais enviar 'secao' como parâmetro para o backend aqui
-
-            if (params.toString()) {
-                url = `${url}?${params.toString()}`;
-            }
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `Erro HTTP! Status: ${response.status}`);
-            }
-            const data = await response.json();
-            setHistorico(data); // Define os dados brutos recebidos
+            const response = await fetch(`${API_BASE_URL}/historico`);
+            if (!response.ok) { throw new Error((await response.json()).message); }
+            setHistorico(await response.json());
         } catch (err) {
             setErrorHistorico(err.message);
         } finally {
@@ -94,7 +58,20 @@ function App() {
         }
     };
 
-    // Lógicas de formulário de bebidas (handleInputChange, handleSubmit, handleEditClick, handleCancelEdit, handleDeleteClick)
+    useEffect(() => {
+        fetchBebidas();
+        fetchHistorico();
+    }, []);
+
+    if (loadingBebidas || loadingHistorico) {
+        return <div style={{ textAlign: 'center', marginTop: '50px' }}>Carregando dados...</div>;
+    }
+
+    if (errorBebidas) {
+        return <div style={{ textAlign: 'center', color: 'red', marginTop: '50px' }}>Erro ao carregar bebidas: {errorBebidas}</div>;
+    }
+
+    // --- Funções de Manipulação de Dados ---
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prevState => ({ ...prevState, [name]: value }));
@@ -107,69 +84,62 @@ function App() {
         const url = isEditing ? `${API_BASE_URL}/bebidas/${formData.id}` : `${API_BASE_URL}/bebidas`;
 
         try {
-            const response = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
+            const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
             const result = await response.json();
-            if (!response.ok) { throw new Error(result.message || `Erro HTTP! Status: ${response.status}`); }
-            if (result.status === 'ok') {
-                setFormStatus(isEditing ? 'Bebida atualizada com sucesso!' : 'Bebida cadastrada com sucesso!');
-                setFormData({ id: null, nome: '', tipo: 'alcolica', volume: '', secao: '' });
-                setIsEditing(false);
-                fetchBebidas();
-                fetchHistorico(); // Atualiza histórico após operação de bebida
-            } else { setFormStatus(`Erro: ${result.message || 'Erro desconhecido'}`); }
-        } catch (err) { setFormStatus(`Erro na requisição: ${err.message}`); }
+            if (!response.ok) { throw new Error(result.message); }
+            
+            setFormStatus(isEditing ? 'Bebida atualizada com sucesso!' : 'Bebida cadastrada com sucesso!');
+            setFormData({ id: null, nome: '', tipo: 'alcolica', volume: '', secao: '' });
+            setIsEditing(false);
+            fetchBebidas();
+            fetchHistorico();
+            setActiveTab('lista'); // Volta para a lista após cadastrar/editar
+        } catch (err) {
+            setFormStatus(`Erro: ${err.message}`);
+        }
     };
 
+    // 3. Função para trocar de aba ao clicar em "Editar"
     const handleEditClick = (bebida) => {
         setFormData({ id: bebida.id, nome: bebida.nome, tipo: bebida.tipo, volume: bebida.volume, secao: bebida.secao });
         setIsEditing(true);
         setFormStatus('');
+        setActiveTab('cadastro'); // Muda para a aba de formulário
     };
 
     const handleCancelEdit = () => {
         setFormData({ id: null, nome: '', tipo: 'alcolica', volume: '', secao: '' });
         setIsEditing(false);
         setFormStatus('');
+        setActiveTab('lista'); // Volta para a lista ao cancelar
     };
 
     const handleDeleteClick = async (bebidaId) => {
-        if (window.confirm('Tem certeza que deseja remover esta bebida permanentemente?')) {
-            setFormStatus('Removendo bebida...');
+        if (window.confirm('Tem certeza?')) {
+            setFormStatus('Removendo...');
             try {
                 const response = await fetch(`${API_BASE_URL}/bebidas/${bebidaId}`, { method: 'DELETE' });
-                const result = await response.json();
-                if (!response.ok) { throw new Error(result.message || `Erro HTTP! Status: ${response.status}`); }
-                if (result.status === 'ok') {
-                    setFormStatus('Bebida removida com sucesso!');
-                    fetchBebidas();
-                    fetchHistorico(); // Atualiza histórico após exclusão de bebida
-                } else { setFormStatus(`Erro ao remover: ${result.message || 'Erro desconhecido'}`); }
-            } catch (err) { setFormStatus(`Erro na requisição de remoção: ${err.message}`); }
+                if (!response.ok) { throw new Error((await response.json()).message); }
+                setFormStatus('Bebida removida!');
+                fetchBebidas();
+                fetchHistorico();
+            } catch (err) {
+                setFormStatus(`Erro ao remover: ${err.message}`);
+            }
         }
     };
-
-    // Lidar com a exclusão de uma movimentação do histórico
+    
     const handleDeleteHistoricoClick = async (movimentoId) => {
-        if (window.confirm('Tem certeza que deseja remover esta movimentação do histórico?')) {
-            setNewHistoricoFormStatus('Removendo movimentação...');
+        if (window.confirm('Tem certeza?')) {
             try {
-                const response = await fetch(`${API_BASE_URL}/historico/${movimentoId}`, { method: 'DELETE' });
-                const result = await response.json();
-
-                if (!response.ok) { throw new Error(result.message || `Erro HTTP! Status: ${response.status}`); }
-                if (result.status === 'ok') {
-                    setNewHistoricoFormStatus('Movimentação removida com sucesso!');
-                    fetchHistorico();
-                } else { setNewHistoricoFormStatus(`Erro ao remover movimentação: ${result.message || 'Erro desconhecido'}`); }
-            } catch (err) { setNewHistoricoFormStatus(`Erro na requisição de remoção do histórico: ${err.message}`); }
+                await fetch(`${API_BASE_URL}/historico/${movimentoId}`, { method: 'DELETE' });
+                fetchHistorico();
+            } catch (err) {
+                // Tratar erro se necessário
+            }
         }
     };
 
-    // Lógicas para o formulário de histórico manual
     const handleNewHistoricoInputChange = (e) => {
         const { name, value } = e.target;
         setNewHistoricoData(prevState => ({ ...prevState, [name]: value }));
@@ -177,206 +147,93 @@ function App() {
 
     const handleNewHistoricoSubmit = async (e) => {
         e.preventDefault();
-        setNewHistoricoFormStatus('Registrando movimentação...');
-
-        const historicoToSend = {
-            ...newHistoricoData,
-            responsavel: 'Registro Manual'
-        };
-
+        const historicoToSend = { ...newHistoricoData, responsavel: 'Registro Manual' };
         try {
-            const response = await fetch(`${API_BASE_URL}/historico`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(historicoToSend) // Envia os dados com o responsável fixo
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) { throw new Error(result.message || `Erro HTTP! Status: ${response.status}`); }
-            if (result.status === 'registrado') {
-                setNewHistoricoFormStatus('Movimentação registrada com sucesso!');
-                setNewHistoricoData({ nome: '', tipo: 'alcolica', volume: '', secao: '', acao: 'Adicionada' });
-                fetchHistorico();
-            } else { setNewHistoricoFormStatus(`Erro ao registrar: ${result.message || 'Erro desconhecido'}`); }
-        } catch (err) { setNewHistoricoFormStatus(`Erro na requisição: ${err.message}`); }
-    };
-
-    // Lidar com a mudança nos parâmetros de ordenação do histórico
-    const handleHistoricoOrderChange = (e) => {
-        const { name, value } = e.target;
-        setHistoricoOrder(prevOrder => {
-            const newOrder = { ...prevOrder, [name]: value };
-
-            if (name === 'data' && value !== '') {
-                newOrder.secao = ''; // Se ordena por data, reseta secao
-            } else if (name === 'secao' && value !== '') {
-                newOrder.data = ''; // Se ordena por secao, reseta data
-            }
-            return newOrder;
-        });
-    };
-
-
-    // useEffect para buscar as bebidas e o histórico quando o componente é montado ou a ordenação muda
-    useEffect(() => {
-        fetchBebidas();
-        fetchHistorico();
-    }, [historicoOrder.data, historicoOrder.secao]); // Re-executa se a ordenação mudar
-
-    if (loadingBebidas || loadingHistorico) {
-        return <div style={{ textAlign: 'center', marginTop: '50px' }}>Carregando dados...</div>;
-    }
-
-    if (errorBebidas) {
-        return <div style={{ textAlign: 'center', color: 'red', marginTop: '50px' }}>Erro ao carregar bebidas: {errorBebidas}</div>;
-    }
-
-    // --- LOGICA DE ORDENAÇÃO NATURAL DA SEÇÃO NO REACT (FEITO NO FRONTEND) ---
-    // Use React.useMemo para otimizar e re-ordenar apenas quando necessário
-    const sortedHistorico = React.useMemo(() => {
-        let currentHistorico = [...historico]; // Cria uma cópia para não modificar o estado original
-
-        if (historicoOrder.secao) {
-            currentHistorico.sort((a, b) => {
-                // Função de ordenação natural para strings alfanuméricas (ex: A1, A2, A10)
-                // Intl.Collator é a maneira mais robusta de fazer "natural sort" em JS
-                const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-                const compareResult = collator.compare(a.secao, b.secao);
-
-                if (historicoOrder.secao === 'asc') {
-                    return compareResult;
-                } else {
-                    return -compareResult; // Inverte para Z-A
-                }
-            });
+            await fetch(`${API_BASE_URL}/historico`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(historicoToSend) });
+            setNewHistoricoData({ nome: '', tipo: 'alcolica', volume: '', secao: '', acao: 'Adicionada' });
+            fetchHistorico();
+            setActiveTab('historico');
+        } catch (err) {
+            // Tratar erro
         }
-        // A ordenação por data já é feita pela API se o parâmetro for enviado
-
-        return currentHistorico;
-    }, [historico, historicoOrder.secao]); // Recalcula se o histórico ou a ordenação da seção mudar
-
+    };
 
     return (
         <div className="App" style={{ maxWidth: '800px', margin: '20px auto', padding: '20px', border: '1px solid #333', borderRadius: '8px', backgroundColor: '#282c34', color: '#f0f0f0' }}>
             <h1 style={{ textAlign: 'center', color: '#61dafb' }}>Gerenciamento de Bebidas</h1>
 
-            {/* Renderiza o componente BebidaList */}
-            <BebidaList
-                bebidas={bebidas}
-                handleEditClick={handleEditClick}
-                handleDeleteClick={handleDeleteClick}
-            />
+            {/* 4. Renderiza o componente de abas */}
+            <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {/* Renderiza o componente BebidaForm */}
-            <BebidaForm
-                formData={formData}
-                handleInputChange={handleInputChange}
-                handleSubmit={handleSubmit}
-                isEditing={isEditing}
-                handleCancelEdit={handleCancelEdit}
-                formStatus={formStatus}
-            />
+            {/* 5. Renderização condicional do conteúdo baseado na aba ativa */}
+            <main>
+                {activeTab === 'lista' && (
+                    <BebidaList
+                        bebidas={bebidas}
+                        handleEditClick={handleEditClick}
+                        handleDeleteClick={handleDeleteClick}
+                    />
+                )}
 
-            {/* Renderiza o componente HistoricoList, passando o handler de exclusão */}
-            <HistoricoList
-                historico={sortedHistorico} // PASSA O HISTÓRICO JÁ ORDENADO
-                loadingHistorico={loadingHistorico}
-                errorHistorico={errorHistorico}
-                handleDeleteHistoricoClick={handleDeleteHistoricoClick}
-                historicoOrder={historicoOrder}
-                handleHistoricoOrderChange={handleHistoricoOrderChange}
-            />
+                {activeTab === 'cadastro' && (
+                    <BebidaForm
+                        formData={formData}
+                        handleInputChange={handleInputChange}
+                        handleSubmit={handleSubmit}
+                        isEditing={isEditing}
+                        handleCancelEdit={handleCancelEdit}
+                        formStatus={formStatus}
+                    />
+                )}
 
-            {/* Renderiza o formulário para adicionar histórico manualmente */}
-            <section style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #444' }}>
-                <h2 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '20px', color: '#61dafb' }}>Adicionar Movimentação Manual ao Histórico</h2>
-                <form onSubmit={handleNewHistoricoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <div>
-                        <label htmlFor="historicoNome" style={{ display: 'block', marginBottom: '5px' }}>Nome da Bebida:</label>
-                        <input
-                            type="text"
-                            id="historicoNome"
-                            name="nome"
-                            value={newHistoricoData.nome}
-                            onChange={handleNewHistoricoInputChange}
-                            required
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="historicoTipo" style={{ display: 'block', marginBottom: '5px' }}>Tipo:</label>
-                        <select
-                            id="historicoTipo"
-                            name="tipo"
-                            value={newHistoricoData.tipo}
-                            onChange={handleNewHistoricoInputChange}
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}
-                        >
-                            <option value="alcolica">Alcoólica</option>
-                            <option value="nao_alcolica">Não Alcoólica</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="historicoVolume" style={{ display: 'block', marginBottom: '5px' }}>Volume (L):</label>
-                        <input
-                            type="number"
-                            id="historicoVolume"
-                            name="volume"
-                            value={newHistoricoData.volume}
-                            onChange={handleNewHistoricoInputChange}
-                            required
-                            min="0"
-                            step="0.01"
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="historicoSecao" style={{ display: 'block', marginBottom: '5px' }}>Seção:</label>
-                        <input
-                            type="text"
-                            id="historicoSecao"
-                            name="secao"
-                            value={newHistoricoData.secao}
-                            onChange={handleNewHistoricoInputChange}
-                            required
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="historicoAcao" style={{ display: 'block', marginBottom: '5px' }}>Ação:</label>
-                        <select
-                            id="historicoAcao"
-                            name="acao"
-                            value={newHistoricoData.acao}
-                            onChange={handleNewHistoricoInputChange}
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}
-                        >
-                            <option value="Adicionada">Adicionada</option>
-                            <option value="Retirada">Retirada</option>
-                        </select>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '10px' }}>
-                        <button
-                            type="submit"
-                            style={{
-                                backgroundColor: '#17a2b8', // Cor diferente para o histórico manual
-                                color: 'white',
-                                border: 'none',
-                                padding: '10px 20px',
-                                borderRadius: '5px',
-                                cursor: 'pointer',
-                                fontSize: '1em',
-                                flexGrow: 1
-                            }}
-                        >
-                            Registrar Movimentação
-                        </button>
-                    </div>
-                </form>
-                {newHistoricoFormStatus && <p style={{ textAlign: 'center', marginTop: '15px', fontWeight: 'bold', color: newHistoricoFormStatus.includes('sucesso') ? '#28a745' : '#dc3545' }}>{newHistoricoFormStatus}</p>}
-            </section>
-            {/* --- FIM DA NOVA SEÇÃO --- */}
+                {activeTab === 'historico' && (
+                    <HistoricoList
+                        historico={historico}
+                        loadingHistorico={loadingHistorico}
+                        errorHistorico={errorHistorico}
+                        handleDeleteHistoricoClick={handleDeleteHistoricoClick}
+                    />
+                )}
+
+                {activeTab === 'manual' && (
+                    <section style={{ marginTop: '40px' }}>
+                        <h2 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '20px', color: '#61dafb' }}>Adicionar Movimentação Manual</h2>
+                        <form onSubmit={handleNewHistoricoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                             {/* ... Inputs do formulário manual ... */}
+                            <div>
+                                <label htmlFor="historicoNome">Nome da Bebida:</label>
+                                <input type="text" id="historicoNome" name="nome" value={newHistoricoData.nome} onChange={handleNewHistoricoInputChange} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }} />
+                            </div>
+                            <div>
+                                <label htmlFor="historicoTipo">Tipo:</label>
+                                <select id="historicoTipo" name="tipo" value={newHistoricoData.tipo} onChange={handleNewHistoricoInputChange} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}>
+                                    <option value="alcolica">Alcoólica</option>
+                                    <option value="nao_alcolica">Não Alcoólica</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="historicoVolume">Volume (L):</label>
+                                <input type="number" id="historicoVolume" name="volume" value={newHistoricoData.volume} onChange={handleNewHistoricoInputChange} required min="0" step="0.01" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }} />
+                            </div>
+                            <div>
+                                <label htmlFor="historicoSecao">Seção:</label>
+                                <input type="text" id="historicoSecao" name="secao" value={newHistoricoData.secao} onChange={handleNewHistoricoInputChange} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }} />
+                            </div>
+                            <div>
+                                <label htmlFor="historicoAcao">Ação:</label>
+                                <select id="historicoAcao" name="acao" value={newHistoricoData.acao} onChange={handleNewHistoricoInputChange} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#444', color: '#f0f0f0' }}>
+                                    <option value="Adicionada">Adicionada</option>
+                                    <option value="Retirada">Retirada</option>
+                                </select>
+                            </div>
+                            <button type="submit" style={{ backgroundColor: '#17a2b8', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontSize: '1em' }}>
+                                Registrar Movimentação
+                            </button>
+                        </form>
+                        {newHistoricoFormStatus && <p>{newHistoricoFormStatus}</p>}
+                    </section>
+                )}
+            </main>
         </div>
     );
 }

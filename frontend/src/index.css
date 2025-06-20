@@ -66,3 +66,36 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+
+.tabs-nav {
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #444;
+  padding-bottom: 0.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.tabs-nav button {
+  background-color: transparent;
+  border: 1px solid #555;
+  color: #f0f0f0;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 1em;
+  border-radius: 5px 5px 0 0;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.tabs-nav button:hover {
+  background-color: #3a3f47;
+  border-color: #61dafb;
+}
+
+.tabs-nav button.active {
+  background-color: #61dafb;
+  color: #282c34;
+  border-bottom-color: #61dafb;
+  font-weight: bold;
+}
